@@ -1,50 +1,18 @@
 <?php
-/**
- * Add User declared IP's to hosts.allow.
- * User will add an IP with a label which will subsequently be stored in a file in
- * the user directory and the IP added to hosts allow.
- *
- * PHP version 5
- *
- * @category  Security
- * @package   Whitelist
- * @author    David Ford <djfordz@gmail.com>
- * @copyright 2017 Transgress Inc.
- * @license   The MIT License(MIT) https://tldrlegal.com/license/mit-license#fulltext
- * @version   Release: 1.2
- * @link      https://github.com/djfordz/cpanel_ssh_whitelist/releases
- */
+
 class Nemj_Whitelist
 {
 
-    /**
-     * File hosts.allow path
-     *
-     * @var string
-     */
     const HOSTS_PATH = '/etc/hosts.allow';
+    const ADMIN_PATH = '/etc/admin.hosts.allow';
+    const SSH_CONF = '/etc/ssh/sshd_config';
+    const ALL_PATH = '/usr/local/cpanel/base/frontend/paper_lantern/nemj_whitelist/.all.hosts.allow';
 
-    /**
-     * UserPath
-     *
-     * @var string
-     */
+
     protected $userPath = null;
 
-    /**
-     * Cpanel object
-     *
-     * @var object
-     */
     protected $cpanel = null;
 
-    /**
-     * Constructs whitelist object, passes in cpanel object.
-     *
-     * @param object $cpanel pass in cpanel object
-     *
-     * @return void
-     */
     public function __construct($cpanel)
     {
         $processUser = posix_getpwuid(posix_geteuid());
@@ -54,11 +22,20 @@ class Nemj_Whitelist
         $this->userPath = "/home/$user/.users.allow";
     }
 
-    /**
-     * Get a list of IP's from user path.
-     *
-     * @return array|null
-     */
+    public function getSshPort()
+    {
+    $ssh_config = file_get_contents(SSH_CONF);
+    
+    preg_match('/Port (?P<digit>\d+)/', $ssh_config, $out);
+    $port=intval(($out[1]));
+    if ($port == 0) {
+        $this->notValidPort();
+            return false;
+    }
+    else {
+        return $port;
+        }
+    }
     public function getIps()
     {
         if (is_file($this->userPath)) {
@@ -78,25 +55,22 @@ class Nemj_Whitelist
         }
     }
 
-    /**
-     * Add IP to user file and hosts.allow.
-     *
-     * @param string $label user declared label
-     * @param string $ip    user declared ip
-     *
-     * @return none
-     */
     public function addIp($label, $ip)
     {
-        // TODO: add ability to use subnets.
         $label = urldecode($label);
         $hosts = '';
         $path = $this->userPath;
 
         if (!$this->isIp($ip)) {
-            echo $this->error(2);
+            $this->notValidError();
             return false;
         }
+
+	$port = $this->getSshPort();
+	if(!$port) {
+	return false; 
+	}
+	exec("nft add rule filter INPUT ip saddr ".$ip." tcp dport ".$port." accept");
 
         if (is_file($this->userPath)) {
             $hosts = file_get_contents($path);
@@ -111,8 +85,8 @@ class Nemj_Whitelist
         }
 
         if (strpos($hosts, $ip)) {
-            echo $this->error(1);
-            return false;
+            $this->duplicateError();
+            return;
         }
 
         $h = explode("\n", $hosts);
@@ -133,13 +107,6 @@ class Nemj_Whitelist
 
     }
 
-    /**
-     * Check if IP is valid
-     *
-     * @param string $ip user declared IP
-     *
-     * @return bool
-     */
     public function isIp($ip = null)
     {
         if (!$ip or strlen(trim($ip)) == 0) {
@@ -153,30 +120,32 @@ class Nemj_Whitelist
                     return false;
                 }
             }
-            if($ip == '0.0.0.0') {
-                return false;
-            }
             return true;
         }
         return false;
     }
 
-    /**
-     * Remove IP from hosts.allow and user file.
-     *
-     * @param string $ip user declared IP
-     *
-     * @return none
-     */
     public function removeIp($ip)
     {
         $path = $this->userPath;
+
+	$port = $this->getSshPort();
+	if(!$port) {
+	return false; 
+	}
+	$chain=exec("nft --handle --numeric list chain filter INPUT|grep \"ip saddr ".$ip." tcp dport ".$port." accept\"|awk '{print $10}'");
+	if(intval($chain) > 0 ) {
+	exec("nft delete rule ip filter INPUT handle ".$chain);
+	}
+	else {
+	return false;
+	}
 
         if (is_file($this->userPath)) {
             $hosts = file_get_contents($this->userPath);
         }
 
-        $h = explode("\n", $hosts);
+	$h = explode("\n", $hosts);
 
         $h = array_filter(
             $h, function ($e) use ($ip) {
@@ -197,14 +166,6 @@ class Nemj_Whitelist
         $this->writeHosts($ip, true);
     }
 
-    /**
-     * write to hosts.allow file.
-     *
-     * This method requires escalation of privileges which is done through api call
-     *
-     * @param string $ip user declared IP
-     * @param bool $flag set flag if IP exists
-      */
     protected function writeHosts($ip, $flag = false)
     {
         $admin = '';
@@ -271,26 +232,18 @@ class Nemj_Whitelist
 
     }
 
-    /**
-     * Error Messages
-     *
-     * @param int $num error number
-     *
-     * @return string error
-      */
-    protected function error($num) 
+    protected function duplicateError() 
     {
-        $result = null;
-        switch($num) {
-            case 1 : $result =  "<h4 style='color:red'>IP is Duplicate.</h4>";
-                break;
-            case 2 : $result = "<h4 style='color:red'>IP entered is invalid.</h4>"; 
-                break;
-            default : $result =  "<h4 style='color:red'>Unspecified Error.</h4>"; 
-                break;
-        }
-
-        return $result;
+        echo "<h4 style='color:red'>IP is Duplicate.</h4>";
     }
-}
 
+    protected function notValidError() 
+    {
+        echo "<h4 style='color:red'>IP entered is invalid.</h4>";
+    }
+    protected function notValidPort() 
+    {
+        echo "<h4 style='color:red'>SSH config is invalid.</h4>";
+    }
+    
+}
