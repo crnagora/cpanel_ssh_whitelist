@@ -21,7 +21,7 @@ class Nemj_Whitelist
 
         $this->userPath = "/home/$user/.users.allow";
     }
-
+    //detect ssh port
     public function getSshPort()
     {
     $ssh_config = file_get_contents(SSH_CONF);
@@ -36,6 +36,7 @@ class Nemj_Whitelist
         return $port;
         }
     }
+	
     public function getIps()
     {
         if (is_file($this->userPath)) {
