@@ -36,7 +36,7 @@ if (!isset($_POST['update'])) {
 ?>
 
 <div id="desc">
-    <p>Add IP's to hosts.allow for ssh access.</p>
+    <p>Add IP's to hosts.allow  & NFT Firewall for ssh access.</p>
 </div>
 <div id="nemj-wrapper">
     <div id="nemj-list">
