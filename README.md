@@ -1,4 +1,6 @@
-## Simple cpanel plugin to allow cpanel users to whitelist IP's in /etc/hosts.allow file & NFT Firewall.
+## Simple cpanel plugin to allow cpanel users to whitelist IP's in /etc/hosts.allow file & NFT Firewall. SSH port address is automatically determined from config of the SSH server.
+
+Works only with AlmaLinux 8 or any other Cpanel server with NFT firewall.
 
 to install:
 
