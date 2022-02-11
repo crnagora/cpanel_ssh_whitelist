@@ -1,15 +1,15 @@
-## Simple cpanel plugin to allow cpanel users to whitelist IP's in /etc/hosts.allow file.
+## Simple cpanel plugin to allow cpanel users to whitelist IP's in /etc/hosts.allow file & NFT Firewall.
 
 to install:
 
 *note: must have root privileges to install cpanel plugins*
 
 
-copy `nemj_whitelist.tar.gz` to cpanel server.
+copy `master.zip` to cpanel server.
 
 ```
-wget https://github.com/TransgressInc/cpanel_ssh_whitelist/archive/ssh_whitelist-1.1.tar.gz 
-tar -xvf nemj_whitelist-1.0.tar.gz && cd cpanel_ssh_whitelist-ssh_whitelist-1.1/ 
+wget https://github.com/crnagora/cpanel_ssh_whitelist/archive/refs/heads/master.zip 
+unzip master.zip && cd cpanel_ssh_whitelist-master/ 
 chmod +x install.sh
 ./install.sh
 ```
@@ -30,9 +30,6 @@ chmod +x update.sh
 ./update.sh
 ```
 
-To add admin IP's or IP's that you do not want user to see or alter. add to `/etc/hosts.allow` where it is commented to add admin IP's
-
 Submit issues for bugs.
 
-Future features:
-add support for subnets
+
